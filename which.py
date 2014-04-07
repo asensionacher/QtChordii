@@ -25,7 +25,7 @@ def which(program):
     for file in os.listdir("."):
         if file.startswith("chordii"):
             if is_exe(file):
-                return file
+                return './' + file
     fpath, fname = os.path.split(program)
     if fpath:
         if is_exe(program):
