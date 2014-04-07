@@ -19,8 +19,9 @@ from PyQt4.QtCore import QRegExp
 from PyQt4.QtGui import QColor, QTextCharFormat, QFont, QSyntaxHighlighter
 
 
-def format(color, style=''):
-    """Return a QTextCharFormat with the given attributes.
+def font_format(color, style=''):
+    """
+    Return a QTextCharFormat with the given attributes.
     """
     _color = QColor()
     _color.setNamedColor(color)
@@ -37,24 +38,28 @@ def format(color, style=''):
 
 # Syntax styles that can be shared by all languages
 STYLES = {
-    'keyword': format('blue'),
-    'argument': format('green'),
-    'curlyBrace': format('blue'),
-    'chord': format('red')
+    'keyword': font_format('olive'),
+    'argument': font_format('darkcyan'),
+    'curlyBrace': font_format('orange'),
+    'chord': font_format('firebrick'),
+    'chorus': font_format('yellow', 'bold')
 }
 
 
 class ChordProHighlighter(QSyntaxHighlighter):
-    """Syntax highlighter for the Python language.
+    """
+    Syntax highlighter for the ChordPro language.
     """
     # ChordPro keywords
     keywords = [
-        'new_song', 'ns', 'title', 't', 'subtitle', 'st', 'start_of_chorus', 'soc', 'end_of_chorus', 'eoc',
-        'comment', 'c', 'comment_italic', 'ci', 'comment_box', 'cb', 'start_of_tab', 'sot', 'end_of_tab', 'eot',
+        'new_song', 'ns', 'start_of_chorus', 'soc', 'end_of_chorus', 'eoc', 'start_of_tab', 'sot', 'end_of_tab', 'eot',
+        'define', 'no_grid', 'ng', 'grid', 'g', 'new_page', 'np', 'new_physical_page', 'npp', 'column_break', 'colb'
     ]
     argumentKeywords = [
-        'title', 't', 'subtitle', 'st', 'comment', 'c',
+        'title', 't', 'subtitle', 'st', 'comment', 'c', 'comment_italic', 'ci', 'comment_box', 'cb', 'textfont',
+        'textsize', 'chordfont', 'chordsize', 'titles', 'columns', 'col', 'pagetype'
     ]
+    keywords.extend(argumentKeywords)
 
     # Braces
     curlyBraces = [
@@ -67,12 +72,15 @@ class ChordProHighlighter(QSyntaxHighlighter):
     def __init__(self, document):
         QSyntaxHighlighter.__init__(self, document)
 
+        self.start_of_chorus = (QRegExp("\{soc\}"), QRegExp("\{eoc\}"), 1, STYLES['chorus'])
+
         rules = []
 
         # Rules
+        # TODO: make a nice rule for chord definition
+        # TODO: make rules for keywords that take special arguments (like numbers)
         rules += [(r'\{%s\:(.)*\}' % w, 0, STYLES['argument']) for w in ChordProHighlighter.argumentKeywords]
-        rules += [(r'\{%s\:' % w, 0, STYLES['keyword']) for w in ChordProHighlighter.keywords]
-        rules += [(r'\{%s' % w, 0, STYLES['keyword']) for w in ChordProHighlighter.keywords]
+        rules += [(r'\{%s\:?' % w, 0, STYLES['keyword']) for w in ChordProHighlighter.keywords]
         rules += [(r'%s' % b, 0, STYLES['curlyBrace']) for b in ChordProHighlighter.curlyBraces]
         rules += [(r'\[[^\]]*\]', 0, STYLES['chord'])]
 
@@ -80,63 +88,62 @@ class ChordProHighlighter(QSyntaxHighlighter):
         self.rules = [(QRegExp(pat), index, fmt)
                       for (pat, index, fmt) in rules]
 
-
     def highlightBlock(self, text):
-        """Apply syntax highlighting to the given block of text.
+        """
+        Apply syntax highlighting to the given block of text.
         """
         # Do other syntax formatting
-        for expression, nth, format in self.rules:
+        for expression, nth, fmt in self.rules:
             index = expression.indexIn(text, 0)
 
             while index >= 0:
                 # We actually want the index of the nth match
                 index = expression.pos(nth)
                 length = len(expression.cap(nth))
-                self.setFormat(index, length, format)
+                self.setFormat(index, length, fmt)
                 index = expression.indexIn(text, index + length)
 
         self.setCurrentBlockState(0)
 
         # Do multi-line strings
+        # TODO: Stop this from overriding the existing style
+        # in_multiline = self.match_multiline(text, *self.start_of_chorus)
 
-    #        in_multiline = self.match_multiline(text, *self.tri_single)
-    #        if not in_multiline:
-    #            in_multiline = self.match_multiline(text, *self.tri_double)
-
-
-    def match_multiline(self, text, delimiter, in_state, style):
-        """Do highlighting of multi-line strings. ``delimiter`` should be a
-        ``QRegExp`` for triple-single-quotes or triple-double-quotes, and
-        ``in_state`` should be a unique integer to represent the corresponding
-        state changes when inside those strings. Returns True if we're still
-        inside a multi-line string when this function is finished.
+    def match_multiline(self, text, starting_delimiter, ending_delimiter, in_state, style):
         """
-        # If inside triple-single quotes, start at 0
+        Highlight multiline text between starting_delimiter and ending_delimiter
+        :param text: text to be highlighted
+        :param starting_delimiter: QRegExp for the starting delimiter
+        :param ending_delimiter: QRegExp for the ending delimiter
+        :param in_state: unique integer defining if text is between delimiters
+        :param style: the style to apply
+        :return: True if we are still inside the multi-line, False otherwise
+        """
         if self.previousBlockState() == in_state:
             start = 0
             add = 0
         # Otherwise, look for the delimiter on this line
         else:
-            start = delimiter.indexIn(text)
+            start = starting_delimiter.indexIn(text)
             # Move past this match
-            add = delimiter.matchedLength()
+            add = starting_delimiter.matchedLength()
 
         # As long as there's a delimiter match on this line...
         while start >= 0:
             # Look for the ending delimiter
-            end = delimiter.indexIn(text, start + add)
+            end = ending_delimiter.indexIn(text, start + add)
             # Ending delimiter on this line?
             if end >= add:
-                length = end - start + add + delimiter.matchedLength()
+                length = end - start + add + ending_delimiter.matchedLength()
                 self.setCurrentBlockState(0)
             # No; multi-line string
             else:
                 self.setCurrentBlockState(in_state)
-                length = text.length() - start + add
+                length = len(text) - start + add
                 # Apply formatting
             self.setFormat(start, length, style)
             # Look for the next match
-            start = delimiter.indexIn(text, start + length)
+            start = starting_delimiter.indexIn(text, start + length)
 
         # Return True if still inside a multi-line string, False otherwise
         if self.currentBlockState() == in_state:
