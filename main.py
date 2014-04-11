@@ -29,6 +29,8 @@ import tempfile
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QDir, Qt, QSize
 from PyQt4.QtGui import QFileDialog, QMessageBox, QInputDialog, QListWidgetItem, QIcon
+import mmap
+import re
 
 from gui.warningmessagebox import WarningMessageBox
 from tab2chordpro.Transpose import testTabFormat, tab2ChordPro, enNotation
@@ -255,12 +257,21 @@ class MainForm(QtGui.QMainWindow):
 
     def open_dir(self):
         print(self.working_dir)
-        for fileType in ('cho', 'crd'):
-            for file in glob.iglob('{}/*.{}'.format(self.working_dir, fileType)):
-                item = QListWidgetItem(os.path.basename(file))
-                item.setData(Qt.UserRole, file)
-                item.setSizeHint(QSize(0, 30))
-                self.ui.fileWidget.addItem(item)
+        for file_type in ('cho', 'crd'):
+            for file_name in glob.iglob('{}/*.{}'.format(self.working_dir, file_type)):
+                #item = QListWidgetItem(os.path.basename(f))
+                #item.setData(Qt.UserRole, f)
+                #item.setSizeHint(QSize(0, 30))
+                #self.ui.fileWidget.addItem(item)
+                with codecs.open(file_name, 'r', "ISO-8859-1") as f:
+                    artist = None
+                    for line in f:
+                        artist = re.search(r'\{st:(.*)\}', line)
+                        if artist:
+                            break
+                    print(artist.group(1).strip())
+
+
 
     def save_project(self):
         """
