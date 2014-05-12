@@ -259,10 +259,10 @@ class MainForm(QtGui.QMainWindow):
         print(self.working_dir)
         for file_type in ('cho', 'crd'):
             for file_name in glob.iglob('{}/*.{}'.format(self.working_dir, file_type)):
-                #item = QListWidgetItem(os.path.basename(f))
-                #item.setData(Qt.UserRole, f)
-                #item.setSizeHint(QSize(0, 30))
-                #self.ui.fileWidget.addItem(item)
+                item = QListWidgetItem(os.path.basename(file_name))
+                item.setData(Qt.UserRole, file_name)
+                item.setSizeHint(QSize(0, 30))
+                self.ui.fileWidget.addItem(item)
                 with codecs.open(file_name, 'r', "ISO-8859-1") as f:
                     artist = None
                     for line in f:
