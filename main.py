@@ -29,6 +29,8 @@ import tempfile
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import QDir, Qt, QSize
 from PyQt4.QtGui import QFileDialog, QMessageBox, QInputDialog, QListWidgetItem, QIcon
+import mmap
+import re
 
 from gui.warningmessagebox import WarningMessageBox
 from songbook import Songbook
@@ -264,6 +266,13 @@ class MainForm(QtGui.QMainWindow):
         for fileType in ('cho', 'crd'):
             for filename in glob.iglob('{}/*.{}'.format(directory, fileType)):
                 self.songbook.add_song(filename)
+                with codecs.open(filename, 'r', "ISO-8859-1") as f:
+                    artist = None
+                    for line in f:
+                        artist = re.search(r'\{st:(.*)\}', line)
+                        if artist:
+                            break
+                    print(artist.group(1).strip())
         self.open_project()
 
     def select_project(self):
